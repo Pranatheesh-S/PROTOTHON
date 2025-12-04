@@ -29,8 +29,8 @@
         /* LEFT SIDEBAR */
         .left-sidebar {
             width: 350px;
-            background-color: #222; /* Dark background */
-            border-right: 1px solid #333; /* Subtle border */
+            background-color: #222;
+            border-right: 1px solid #333;
             padding: 20px;
             display: flex;
             flex-direction: column;
@@ -52,8 +52,8 @@
         /* RIGHT SIDEBAR */
         .right-sidebar {
             width: 350px;
-            background-color: #222; /* Dark background */
-            border-left: 1px solid #333; /* Subtle border */
+            background-color: #222;
+            border-left: 1px solid #333;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -65,7 +65,7 @@
 
         /* --- DASHBOARD STYLES --- */
         
-        /* UPDATED ATTRACTIVE H1 (New Gradient) */
+        /* H1 with Deep Purple/Blue Gradient */
         h1 { 
             margin-bottom: 40px;
             font-size: 2.8rem;
@@ -74,7 +74,6 @@
             letter-spacing: 1px;
             text-align: center;
             
-            /* NEW GRADIENT: Deep Purple to Soft Blue */
             background: linear-gradient(to right, #4e54c8, #8f94fb);
             
             -webkit-background-clip: text;
@@ -85,7 +84,6 @@
             display: inline-block;
         }
 
-        /* Stylish Underline for H1 (Matches New Gradient) */
         h1::after {
             content: '';
             position: absolute;
@@ -117,6 +115,7 @@
         .card h3 { margin: 0; color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         .value { font-size: 2.5rem; font-weight: bold; color: #2c3e50; margin: 10px 0; }
         .unit { font-size: 1rem; color: #aaa; font-weight: normal; }
+        
         .status-badge {
             display: inline-block; padding: 10px 30px; border-radius: 30px;
             font-weight: bold; color: white; font-size: 1.2rem; cursor: pointer; user-select: none;
@@ -126,6 +125,19 @@
         .status-on { background-color: #2ecc71; }
         .status-off { background-color: #e74c3c; }
         .status-loading { background-color: #bdc3c7; cursor: wait; }
+
+        /* Cost Specific Styles */
+        .cost-value { color: #e74c3c; } /* Red color for cost */
+        .free-tier-badge {
+            background-color: #2ecc71;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 5px;
+        }
 
         /* --- 3D FAN ANIMATION STYLES --- */
         #fan-widget-container {
@@ -266,7 +278,7 @@
                     <div style="margin-top: 15px;">
                         <span id="s-fan" class="status-badge status-loading">Waiting...</span>
                     </div>
-                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
+                    <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div>
                 </div>
 
                 <div class="card">
@@ -274,8 +286,20 @@
                     <div style="margin-top: 15px;">
                         <span id="s-led" class="status-badge status-loading">Waiting...</span>
                     </div>
-                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
+                    <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div>
                 </div>
+
+                <div class="card" style="border: 2px solid #e74c3c;">
+                    <h3>Estimated Cost</h3>
+                    <div class="value cost-value">
+                        ₹ <span id="p-cost">0.00</span>
+                    </div>
+                    <div id="cost-badge-container">
+                        <span class="free-tier-badge">Free Tier</span>
+                    </div>
+                    <div style="margin-top:5px; font-size:0.75rem; color:#aaa;">(Based on TN Govt Tariffs)</div>
+                </div>
+
             </div>
         </div>
 
@@ -290,7 +314,7 @@
                     <div class="bulb-base"></div>
                     <div class="bulb-tip"></div>
                 </div>
-                <!-- <div style="margin-top:30px; color:#888; font-size: 0.8rem;">Tap bulb to toggle</div> -->
+                <div style="margin-top:30px; color:#888; font-size: 0.8rem;">Tap bulb to toggle</div>
             </div>
         </div>
 
@@ -317,12 +341,50 @@
         let currentFanState = 1; 
         let currentLedState = 1; 
 
+        // Function to Calculate Bill based on TN Tariff Slabs
+        function calculateTNEBBill(energyMWh) {
+            // 1 Unit (kWh) = 1,000,000 mWh
+            const units = energyMWh / 1000000;
+            let cost = 0;
+            let isFree = false;
+
+            if (units <= 100) {
+                cost = 0;
+                isFree = true;
+            } else if (units <= 200) {
+                // First 100 free, next 100 @ 2.25 (approx)
+                cost = (units - 100) * 2.35; 
+            } else if (units <= 400) {
+                // Slab logic simplifies for demo: flat rate for upper tiers usually applies in some states, 
+                // but strictly: 0-100 free, 101-200@2.35, 201-400@4.70
+                cost = (100 * 2.35) + ((units - 200) * 4.70);
+            } else if (units <= 500) {
+                cost = (100 * 2.35) + (200 * 4.70) + ((units - 400) * 6.30);
+            } else {
+                cost = (100 * 2.35) + (200 * 4.70) + (100 * 6.30) + ((units - 500) * 8.40);
+            }
+
+            return { cost: cost.toFixed(2), isFree: isFree, units: units.toFixed(4) };
+        }
+
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 document.getElementById('p-power').innerText = data.power.toFixed(2);
                 document.getElementById('p-current').innerText = data.current.toFixed(2);
                 document.getElementById('p-energy').innerText = data.energy.toFixed(2);
+
+                // --- CALCULATE COST ---
+                const billData = calculateTNEBBill(data.energy);
+                document.getElementById('p-cost').innerText = billData.cost;
+                
+                const badgeContainer = document.getElementById('cost-badge-container');
+                if(billData.isFree) {
+                    badgeContainer.innerHTML = '<span class="free-tier-badge">Free Tier (<100 Units)</span>';
+                } else {
+                    badgeContainer.innerHTML = `<span class="free-tier-badge" style="background:#f39c12">Tier Active</span>`;
+                }
+
 
                 // --- FAN LOGIC ---
                 currentFanState = data.fan; 
