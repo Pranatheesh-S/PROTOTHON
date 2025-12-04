@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home Dashboard with 3D View</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- LAYOUT CONTAINERS --- */
+        .main-container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* LEFT SIDEBAR */
+        .left-sidebar {
+            width: 350px;
+            background-color: #222; /* Dark background */
+            border-right: 1px solid #333; /* Subtle border */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            color: #ccc; 
+        }
+
+        /* CENTER CONTENT */
+        .center-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            overflow-y: auto;
+            background-color: #f4f7f6; 
+        }
+
+        /* RIGHT SIDEBAR */
+        .right-sidebar {
+            width: 350px;
+            background-color: #222; /* Dark background */
+            border-left: 1px solid #333; /* Subtle border */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            flex-shrink: 0;
+            position: relative;
+            color: #ccc;
+        }
+
+        /* --- DASHBOARD STYLES --- */
+        
+        /* UPDATED ATTRACTIVE H1 (New Gradient) */
+        h1 { 
+            margin-bottom: 40px;
+            font-size: 2.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+            
+            /* NEW GRADIENT: Deep Purple to Soft Blue */
+            background: linear-gradient(to right, #4e54c8, #8f94fb);
+            
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Stylish Underline for H1 (Matches New Gradient) */
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(to right, #4e54c8, #8f94fb);
+            border-radius: 5px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card h3 { margin: 0; color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 2.5rem; font-weight: bold; color: #2c3e50; margin: 10px 0; }
+        .unit { font-size: 1rem; color: #aaa; font-weight: normal; }
+        .status-badge {
+            display: inline-block; padding: 10px 30px; border-radius: 30px;
+            font-weight: bold; color: white; font-size: 1.2rem; cursor: pointer; user-select: none;
+            transition: background-color 0.2s, transform 0.1s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .status-badge:active { transform: scale(0.95); }
+        .status-on { background-color: #2ecc71; }
+        .status-off { background-color: #e74c3c; }
+        .status-loading { background-color: #bdc3c7; cursor: wait; }
+
+        /* --- 3D FAN ANIMATION STYLES --- */
+        #fan-widget-container {
+            width: 100%;
+            height: 350px;
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+            margin-top: 10px;
+            background-color: #222; 
+        }
+        #canvas-container { width: 100%; height: 100%; display: block; }
+
+        /* --- BULB CSS --- */
+        .bulb-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .bulb-container {
+            position: relative;
+            width: 150px;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transform: scale(1.2);
+        }
+
+        .wire {
+            width: 4px;
+            height: 100px;
+            background: #444; 
+            position: absolute;
+            top: -100px;
+            z-index: 1;
+        }
+
+        .bulb-glass {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: #444;
+            border-radius: 50%;
+            z-index: 2;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 
+                inset -10px -10px 20px rgba(0,0,0,0.5),
+                inset 10px 10px 20px rgba(255,255,255,0.1),
+                0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .bulb-base {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(to right, #666, #ccc, #666);
+            margin-top: -15px;
+            z-index: 1;
+            border-radius: 5px 5px 15px 15px;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(0,0,0,0.3) 10px, rgba(0,0,0,0.3) 12px);
+        }
+
+        .bulb-tip {
+            width: 20px;
+            height: 10px;
+            background: #333;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .bulb-glass.on {
+            background: #ffeb3b;
+            box-shadow: 
+                inset -10px -10px 20px rgba(255, 165, 0, 0.5),
+                0 0 30px #ffeb3b,
+                0 0 80px #ffeb3b,
+                0 0 120px #ffeb3b;
+        }
+
+        .bulb-glass::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px; height: 30px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-bottom: none;
+            border-radius: 50% 50% 0 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <div class="left-sidebar">
+            <h3 style="color:#ccc; text-align:center;">Fan Visualizer</h3>
+            <hr style="width:100%; border:0; border-top:1px solid #444; margin: 10px 0;">
+            
+            <div id="fan-widget-container">
+                <div id="canvas-container"></div>
+            </div>
+        </div>
+
+        <div class="center-content">
+            <h1>🏡 Smart Home Monitor</h1>
+
+            <div class="dashboard">
+                <div class="card">
+                    <h3>Power Consumption</h3>
+                    <div class="value">
+                        <span id="p-power">--</span> <span class="unit">mW</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Current</h3>
+                    <div class="value">
+                        <span id="p-current">--</span> <span class="unit">mA</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Total Energy</h3>
+                    <div class="value">
+                        <span id="p-energy">--</span> <span class="unit">mWh</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Fan Control</h3>
+                    <div style="margin-top: 15px;">
+                        <span id="s-fan" class="status-badge status-loading">Waiting...</span>
+                    </div>
+                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
+                </div>
+
+                <div class="card">
+                    <h3>LED Control</h3>
+                    <div style="margin-top: 15px;">
+                        <span id="s-led" class="status-badge status-loading">Waiting...</span>
+                    </div>
+                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
+                </div>
+            </div>
+        </div>
+
+        <div class="right-sidebar">
+            <h3 style="color:#ccc; text-align:center;">Light Visualizer</h3>
+            <hr style="width:100%; border:0; border-top:1px solid #444; margin: 10px 0;">
+            
+            <div class="bulb-wrapper">
+                <div class="bulb-container" id="visual-bulb-container">
+                    <div class="wire"></div>
+                    <div class="bulb-glass" id="visual-bulb"></div>
+                    <div class="bulb-base"></div>
+                    <div class="bulb-tip"></div>
+                </div>
+                <!-- <div style="margin-top:30px; color:#888; font-size: 0.8rem;">Tap bulb to toggle</div> -->
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZjRQuy6NA0nHn-uB5Oq0YUoIDUtOGf-U",
+            authDomain: "smart-home-d766f.firebaseapp.com",
+            databaseURL: "https://smart-home-d766f-default-rtdb.firebaseio.com",
+            projectId: "smart-home-d766f",
+            storageBucket: "smart-home-d766f.firebasestorage.app",
+            messagingSenderId: "599066678648",
+            appId: "1:599066678648:web:7b2ffa481f717b9afee48d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db, 'SmartHome');
+
+        let currentFanState = 1; 
+        let currentLedState = 1; 
+
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                document.getElementById('p-power').innerText = data.power.toFixed(2);
+                document.getElementById('p-current').innerText = data.current.toFixed(2);
+                document.getElementById('p-energy').innerText = data.energy.toFixed(2);
+
+                // --- FAN LOGIC ---
+                currentFanState = data.fan; 
+                const fanEl = document.getElementById('s-fan');
+                
+                if (currentFanState === 0) { // 0 is ON
+                    fanEl.innerText = "ON"; 
+                    fanEl.className = "status-badge status-on";
+                    if (window.setFanAnimationState) window.setFanAnimationState(true);
+                } else {
+                    fanEl.innerText = "OFF"; 
+                    fanEl.className = "status-badge status-off";
+                    if (window.setFanAnimationState) window.setFanAnimationState(false);
+                }
+
+                // --- LED LOGIC ---
+                currentLedState = data.led; 
+                const ledEl = document.getElementById('s-led');
+                const bulbVisual = document.getElementById('visual-bulb');
+                
+                if (currentLedState === 0) { // 0 is ON
+                    ledEl.innerText = "ON"; 
+                    ledEl.className = "status-badge status-on";
+                    bulbVisual.classList.add('on');
+                } else {
+                    ledEl.innerText = "OFF"; 
+                    ledEl.className = "status-badge status-off";
+                    bulbVisual.classList.remove('on');
+                }
+            }
+        });
+
+        // Toggle Fan
+        document.getElementById('s-fan').addEventListener('click', () => {
+            const newState = currentFanState === 0 ? 1 : 0;
+            set(ref(db, 'SmartHome/fan'), newState).catch((error) => alert("Failed to update Fan."));
+        });
+
+        // Toggle LED (Via Dashboard Button)
+        document.getElementById('s-led').addEventListener('click', () => {
+            const newState = currentLedState === 0 ? 1 : 0;
+            set(ref(db, 'SmartHome/led'), newState).catch((error) => alert("Failed to update LED."));
+        });
+
+        // Toggle LED (Via Clicking the 3D Bulb)
+        document.getElementById('visual-bulb-container').addEventListener('click', () => {
+            const newState = currentLedState === 0 ? 1 : 0;
+            set(ref(db, 'SmartHome/led'), newState).catch((error) => alert("Failed to update LED."));
+        });
+    </script>
+
+    <script>
+        const container = document.getElementById('canvas-container');
+        const width = container.offsetWidth;
+        const height = container.offsetHeight;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        
+        const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000); 
+        camera.position.set(2, 1.5, 7); 
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        const coldLight = new THREE.PointLight(0x00C9FF, 0, 10);
+        coldLight.position.set(0, 0, 1.5);
+        scene.add(coldLight);
+
+        const coolerGroup = new THREE.Group();
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+        const bladeMat = new THREE.MeshStandardMaterial({ color: 0x00C9FF, metalness: 0.5, roughness: 0.2 });
+
+        const bodyGeo = new THREE.BoxGeometry(3, 4, 2);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.castShadow = true;
+        coolerGroup.add(body);
+
+        const grillGeo = new THREE.CylinderGeometry(1.3, 1.3, 0.2, 32);
+        const grill = new THREE.Mesh(grillGeo, darkMat);
+        grill.rotation.x = Math.PI / 2;
+        grill.position.set(0, 0.5, 1.01);
+        coolerGroup.add(grill);
+
+        const fanGroup = new THREE.Group();
+        for(let i=0; i<3; i++) {
+            const bladeGeo = new THREE.BoxGeometry(0.4, 1.2, 0.1);
+            const blade = new THREE.Mesh(bladeGeo, bladeMat);
+            blade.position.y = 0.6;
+            const pivot = new THREE.Group();
+            pivot.add(blade);
+            pivot.rotation.z = i * (Math.PI * 2 / 3);
+            fanGroup.add(pivot);
+        }
+        fanGroup.position.set(0, 0.5, 1.1);
+        coolerGroup.add(fanGroup);
+
+        for(let i=0; i<3; i++) {
+            const ventGeo = new THREE.BoxGeometry(2.5, 0.2, 0.1);
+            const vent = new THREE.Mesh(ventGeo, darkMat);
+            vent.position.set(0, -1.0 - (i * 0.4), 1.01);
+            coolerGroup.add(vent);
+        }
+
+        const footGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.5);
+        const foot1 = new THREE.Mesh(footGeo, darkMat); foot1.position.set(-1.2, -2.2, 0.8);
+        const foot2 = new THREE.Mesh(footGeo, darkMat); foot2.position.set(1.2, -2.2, 0.8);
+        const foot3 = new THREE.Mesh(footGeo, darkMat); foot3.position.set(-1.2, -2.2, -0.8);
+        const foot4 = new THREE.Mesh(footGeo, darkMat); foot4.position.set(1.2, -2.2, -0.8);
+        coolerGroup.add(foot1, foot2, foot3, foot4);
+
+        coolerGroup.rotation.y = 48 * (Math.PI / 180); 
+        scene.add(coolerGroup);
+
+        let isRunning = false;
+        let fanSpeed = 0;
+
+        window.setFanAnimationState = function(isOn) {
+            isRunning = isOn;
+        };
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isRunning) {
+                fanSpeed = THREE.MathUtils.lerp(fanSpeed, 0.5, 0.05);
+                coldLight.intensity = THREE.MathUtils.lerp(coldLight.intensity, 1.5, 0.05);
+            } else {
+                fanSpeed = THREE.MathUtils.lerp(fanSpeed, 0, 0.02);
+                coldLight.intensity = THREE.MathUtils.lerp(coldLight.intensity, 0, 0.05);
+            }
+
+            fanGroup.rotation.z -= fanSpeed;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            const newWidth = container.offsetWidth;
+            const newHeight = container.offsetHeight;
+            camera.aspect = newWidth / newHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(newWidth, newHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
