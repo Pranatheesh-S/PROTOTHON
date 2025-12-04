@@ -352,11 +352,8 @@
                 cost = 0;
                 isFree = true;
             } else if (units <= 200) {
-                // First 100 free, next 100 @ 2.25 (approx)
                 cost = (units - 100) * 2.35; 
             } else if (units <= 400) {
-                // Slab logic simplifies for demo: flat rate for upper tiers usually applies in some states, 
-                // but strictly: 0-100 free, 101-200@2.35, 201-400@4.70
                 cost = (100 * 2.35) + ((units - 200) * 4.70);
             } else if (units <= 500) {
                 cost = (100 * 2.35) + (200 * 4.70) + ((units - 400) * 6.30);
@@ -370,8 +367,24 @@
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                document.getElementById('p-power').innerText = data.power.toFixed(2);
-                document.getElementById('p-current').innerText = data.current.toFixed(2);
+                // UPDATE: First update global state variables
+                currentFanState = data.fan; 
+                currentLedState = data.led; 
+
+                // UPDATE: Logic to Force Zero if both are OFF (1 means OFF in your logic)
+                let displayPower = data.power;
+                let displayCurrent = data.current;
+
+                if (currentFanState === 1 && currentLedState === 1) {
+                    displayPower = 0;
+                    displayCurrent = 0;
+                }
+
+                // Update DOM with calculated display values
+                document.getElementById('p-power').innerText = displayPower.toFixed(2);
+                document.getElementById('p-current').innerText = displayCurrent.toFixed(2);
+                
+                // Energy is cumulative, so we keep reading from DB (it doesn't reset when devices turn off)
                 document.getElementById('p-energy').innerText = data.energy.toFixed(2);
 
                 // --- CALCULATE COST ---
@@ -386,8 +399,7 @@
                 }
 
 
-                // --- FAN LOGIC ---
-                currentFanState = data.fan; 
+                // --- FAN UI UPDATE ---
                 const fanEl = document.getElementById('s-fan');
                 
                 if (currentFanState === 0) { // 0 is ON
@@ -400,8 +412,7 @@
                     if (window.setFanAnimationState) window.setFanAnimationState(false);
                 }
 
-                // --- LED LOGIC ---
-                currentLedState = data.led; 
+                // --- LED UI UPDATE ---
                 const ledEl = document.getElementById('s-led');
                 const bulbVisual = document.getElementById('visual-bulb');
                 
