@@ -15,8 +15,8 @@
             background-color: #eef2f5;
             margin: 0;
             padding: 0;
-            height: 100vh;
-            overflow: hidden;
+            height: 100vh; /* Default for Desktop */
+            overflow: hidden; /* Default for Desktop */
         }
 
         /* --- LAYOUT CONTAINERS --- */
@@ -24,6 +24,7 @@
             display: flex;
             height: 100%;
             width: 100%;
+            transition: all 0.3s ease;
         }
 
         /* LEFT SIDEBAR */
@@ -156,6 +157,8 @@
             justify-content: center;
             align-items: center;
             width: 100%;
+            /* min-height for mobile to ensure visibility */
+            min-height: 250px; 
         }
 
         .bulb-container {
@@ -229,6 +232,52 @@
             border-radius: 50% 50% 0 0;
         }
 
+        /* --- RESPONSIVE MEDIA QUERIES --- */
+        @media screen and (max-width: 1024px) {
+            body {
+                height: auto;
+                overflow-y: auto; /* Enable scrolling on mobile */
+            }
+
+            .main-container {
+                flex-direction: column; /* Stack elements vertically */
+            }
+
+            /* Reorder elements: Dashboard First (1), then Visualizers (2,3) */
+            .center-content {
+                order: 1;
+                width: 100%;
+                padding: 20px 15px; /* Reduce padding slightly */
+                overflow: visible; /* Let content grow */
+            }
+
+            .left-sidebar {
+                order: 2;
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #333;
+                height: auto;
+            }
+
+            .right-sidebar {
+                order: 3;
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #333;
+                height: auto;
+                padding-bottom: 50px; /* Extra padding at bottom */
+            }
+
+            h1 {
+                font-size: 2rem; /* Smaller Title */
+                margin-bottom: 30px;
+            }
+
+            #fan-widget-container {
+                height: 300px; /* Slightly shorter on mobile */
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -274,7 +323,6 @@
                     <div style="margin-top: 15px;">
                         <span id="s-fan" class="status-badge status-loading">Waiting...</span>
                     </div>
-                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
                 </div>
 
                 <div class="card">
@@ -282,7 +330,6 @@
                     <div style="margin-top: 15px;">
                         <span id="s-led" class="status-badge status-loading">Waiting...</span>
                     </div>
-                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
                 </div>
 
                 <div class="card" style="border: 2px solid #e74c3c;">
@@ -307,10 +354,8 @@
                 <div class="bulb-container" id="visual-bulb-container">
                     <div class="wire"></div>
                     <div class="bulb-glass" id="visual-bulb"></div>
-                    <!-- <div class="bulb-base"></div> -->
                     <div class="bulb-tip"></div>
                 </div>
-                <!-- <div style="margin-top:30px; color:#888; font-size: 0.8rem;">Tap bulb to toggle</div> -->
             </div>
         </div>
 
@@ -334,12 +379,11 @@
         const db = getDatabase(app);
         const dbRef = ref(db, 'SmartHome');
 
-        let currentFanState = 0; // Default OFF
-        let currentLedState = 0; // Default OFF
+        let currentFanState = 0; 
+        let currentLedState = 0; 
 
         // Function to Calculate Bill based on TN Tariff Slabs
         function calculateTNEBBill(energyMWh) {
-            // 1 Unit (kWh) = 1,000,000 mWh
             const units = energyMWh / 1000000;
             let cost = 0;
             let isFree = false;
@@ -363,12 +407,9 @@
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // UPDATE: First update global state variables
                 currentFanState = data.fan; 
                 currentLedState = data.led; 
 
-                // UPDATE: Logic to Force Zero if both are OFF
-                // LOGIC CHANGE: 0 is now OFF. So we check if both are 0.
                 let displayPower = data.power;
                 let displayCurrent = data.current;
 
@@ -377,14 +418,10 @@
                     displayCurrent = 0;
                 }
 
-                // Update DOM with calculated display values
                 document.getElementById('p-power').innerText = displayPower.toFixed(2);
                 document.getElementById('p-current').innerText = displayCurrent.toFixed(2);
-                
-                // Energy is cumulative
                 document.getElementById('p-energy').innerText = data.energy.toFixed(2);
 
-                // --- CALCULATE COST ---
                 const billData = calculateTNEBBill(data.energy);
                 document.getElementById('p-cost').innerText = billData.cost;
                 
@@ -395,10 +432,8 @@
                     badgeContainer.innerHTML = `<span class="free-tier-badge" style="background:#f39c12">Tier Active</span>`;
                 }
 
-
-                // --- FAN UI UPDATE (LOGIC CHANGED: 1 is ON) ---
+                // --- FAN UI UPDATE ---
                 const fanEl = document.getElementById('s-fan');
-                
                 if (currentFanState === 1) { 
                     fanEl.innerText = "ON"; 
                     fanEl.className = "status-badge status-on";
@@ -409,7 +444,7 @@
                     if (window.setFanAnimationState) window.setFanAnimationState(false);
                 }
 
-                // --- LED UI UPDATE (LOGIC CHANGED: 1 is ON) ---
+                // --- LED UI UPDATE ---
                 const ledEl = document.getElementById('s-led');
                 const bulbVisual = document.getElementById('visual-bulb');
                 
@@ -425,21 +460,16 @@
             }
         });
 
-        // Toggle Fan (Switching between 1 and 0)
         document.getElementById('s-fan').addEventListener('click', () => {
-            // If current is 1 (ON), send 0 (OFF). Else send 1 (ON).
             const newState = currentFanState === 1 ? 0 : 1;
             set(ref(db, 'SmartHome/fan'), newState).catch((error) => alert("Failed to update Fan."));
         });
 
-        // Toggle LED (Via Dashboard Button)
         document.getElementById('s-led').addEventListener('click', () => {
-            // If current is 1 (ON), send 0 (OFF). Else send 1 (ON).
             const newState = currentLedState === 1 ? 0 : 1;
             set(ref(db, 'SmartHome/led'), newState).catch((error) => alert("Failed to update LED."));
         });
 
-        // Toggle LED (Via Clicking the 3D Bulb)
         document.getElementById('visual-bulb-container').addEventListener('click', () => {
             const newState = currentLedState === 1 ? 0 : 1;
             set(ref(db, 'SmartHome/led'), newState).catch((error) => alert("Failed to update LED."));
@@ -448,8 +478,9 @@
 
     <script>
         const container = document.getElementById('canvas-container');
-        const width = container.offsetWidth;
-        const height = container.offsetHeight;
+        // Initial setup
+        let width = container.offsetWidth;
+        let height = container.offsetHeight;
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x222222);
@@ -543,12 +574,18 @@
             renderer.render(scene, camera);
         }
 
+        // Updated Resize Logic for Reliability
         window.addEventListener('resize', () => {
-            const newWidth = container.offsetWidth;
-            const newHeight = container.offsetHeight;
-            camera.aspect = newWidth / newHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(newWidth, newHeight);
+            setTimeout(() => {
+                const newWidth = container.offsetWidth;
+                const newHeight = container.offsetHeight;
+                
+                if (newWidth > 0 && newHeight > 0) {
+                    camera.aspect = newWidth / newHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(newWidth, newHeight);
+                }
+            }, 100); // Slight delay to ensure CSS transition finishes
         });
 
         animate();
