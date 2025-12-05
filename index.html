@@ -65,7 +65,6 @@
 
         /* --- DASHBOARD STYLES --- */
         
-        /* H1 with Deep Purple/Blue Gradient */
         h1 { 
             margin-bottom: 40px;
             font-size: 2.8rem;
@@ -73,13 +72,10 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             text-align: center;
-            
             background: linear-gradient(to right, #4e54c8, #8f94fb);
-            
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            
             position: relative;
             display: inline-block;
         }
@@ -127,7 +123,7 @@
         .status-loading { background-color: #bdc3c7; cursor: wait; }
 
         /* Cost Specific Styles */
-        .cost-value { color: #e74c3c; } /* Red color for cost */
+        .cost-value { color: #e74c3c; } 
         .free-tier-badge {
             background-color: #2ecc71;
             color: white;
@@ -278,7 +274,7 @@
                     <div style="margin-top: 15px;">
                         <span id="s-fan" class="status-badge status-loading">Waiting...</span>
                     </div>
-                    <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div>
+                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
                 </div>
 
                 <div class="card">
@@ -286,7 +282,7 @@
                     <div style="margin-top: 15px;">
                         <span id="s-led" class="status-badge status-loading">Waiting...</span>
                     </div>
-                    <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div>
+                    <!-- <div style="margin-top:5px; font-size:0.8rem; color:#aaa;">(Click to Toggle)</div> -->
                 </div>
 
                 <div class="card" style="border: 2px solid #e74c3c;">
@@ -311,10 +307,10 @@
                 <div class="bulb-container" id="visual-bulb-container">
                     <div class="wire"></div>
                     <div class="bulb-glass" id="visual-bulb"></div>
-                    <div class="bulb-base"></div>
+                    <!-- <div class="bulb-base"></div> -->
                     <div class="bulb-tip"></div>
                 </div>
-                <div style="margin-top:30px; color:#888; font-size: 0.8rem;">Tap bulb to toggle</div>
+                <!-- <div style="margin-top:30px; color:#888; font-size: 0.8rem;">Tap bulb to toggle</div> -->
             </div>
         </div>
 
@@ -338,8 +334,8 @@
         const db = getDatabase(app);
         const dbRef = ref(db, 'SmartHome');
 
-        let currentFanState = 1; 
-        let currentLedState = 1; 
+        let currentFanState = 0; // Default OFF
+        let currentLedState = 0; // Default OFF
 
         // Function to Calculate Bill based on TN Tariff Slabs
         function calculateTNEBBill(energyMWh) {
@@ -371,11 +367,12 @@
                 currentFanState = data.fan; 
                 currentLedState = data.led; 
 
-                // UPDATE: Logic to Force Zero if both are OFF (1 means OFF in your logic)
+                // UPDATE: Logic to Force Zero if both are OFF
+                // LOGIC CHANGE: 0 is now OFF. So we check if both are 0.
                 let displayPower = data.power;
                 let displayCurrent = data.current;
 
-                if (currentFanState === 1 && currentLedState === 1) {
+                if (currentFanState === 0 && currentLedState === 0) {
                     displayPower = 0;
                     displayCurrent = 0;
                 }
@@ -384,7 +381,7 @@
                 document.getElementById('p-power').innerText = displayPower.toFixed(2);
                 document.getElementById('p-current').innerText = displayCurrent.toFixed(2);
                 
-                // Energy is cumulative, so we keep reading from DB (it doesn't reset when devices turn off)
+                // Energy is cumulative
                 document.getElementById('p-energy').innerText = data.energy.toFixed(2);
 
                 // --- CALCULATE COST ---
@@ -399,10 +396,10 @@
                 }
 
 
-                // --- FAN UI UPDATE ---
+                // --- FAN UI UPDATE (LOGIC CHANGED: 1 is ON) ---
                 const fanEl = document.getElementById('s-fan');
                 
-                if (currentFanState === 0) { // 0 is ON
+                if (currentFanState === 1) { 
                     fanEl.innerText = "ON"; 
                     fanEl.className = "status-badge status-on";
                     if (window.setFanAnimationState) window.setFanAnimationState(true);
@@ -412,11 +409,11 @@
                     if (window.setFanAnimationState) window.setFanAnimationState(false);
                 }
 
-                // --- LED UI UPDATE ---
+                // --- LED UI UPDATE (LOGIC CHANGED: 1 is ON) ---
                 const ledEl = document.getElementById('s-led');
                 const bulbVisual = document.getElementById('visual-bulb');
                 
-                if (currentLedState === 0) { // 0 is ON
+                if (currentLedState === 1) { 
                     ledEl.innerText = "ON"; 
                     ledEl.className = "status-badge status-on";
                     bulbVisual.classList.add('on');
@@ -428,21 +425,23 @@
             }
         });
 
-        // Toggle Fan
+        // Toggle Fan (Switching between 1 and 0)
         document.getElementById('s-fan').addEventListener('click', () => {
-            const newState = currentFanState === 0 ? 1 : 0;
+            // If current is 1 (ON), send 0 (OFF). Else send 1 (ON).
+            const newState = currentFanState === 1 ? 0 : 1;
             set(ref(db, 'SmartHome/fan'), newState).catch((error) => alert("Failed to update Fan."));
         });
 
         // Toggle LED (Via Dashboard Button)
         document.getElementById('s-led').addEventListener('click', () => {
-            const newState = currentLedState === 0 ? 1 : 0;
+            // If current is 1 (ON), send 0 (OFF). Else send 1 (ON).
+            const newState = currentLedState === 1 ? 0 : 1;
             set(ref(db, 'SmartHome/led'), newState).catch((error) => alert("Failed to update LED."));
         });
 
         // Toggle LED (Via Clicking the 3D Bulb)
         document.getElementById('visual-bulb-container').addEventListener('click', () => {
-            const newState = currentLedState === 0 ? 1 : 0;
+            const newState = currentLedState === 1 ? 0 : 1;
             set(ref(db, 'SmartHome/led'), newState).catch((error) => alert("Failed to update LED."));
         });
     </script>
