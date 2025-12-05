@@ -15,8 +15,8 @@
             background-color: #eef2f5;
             margin: 0;
             padding: 0;
-            height: 100vh; /* Default for Desktop */
-            overflow: hidden; /* Default for Desktop */
+            height: 100vh;
+            overflow: hidden; /* Desktop default */
         }
 
         /* --- LAYOUT CONTAINERS --- */
@@ -27,7 +27,7 @@
             transition: all 0.3s ease;
         }
 
-        /* LEFT SIDEBAR */
+        /* LEFT SIDEBAR (Fan) */
         .left-sidebar {
             width: 350px;
             background-color: #222;
@@ -50,7 +50,7 @@
             background-color: #f4f7f6; 
         }
 
-        /* RIGHT SIDEBAR */
+        /* RIGHT SIDEBAR (Light) */
         .right-sidebar {
             width: 350px;
             background-color: #222;
@@ -65,7 +65,6 @@
         }
 
         /* --- DASHBOARD STYLES --- */
-        
         h1 { 
             margin-bottom: 40px;
             font-size: 2.8rem;
@@ -157,7 +156,6 @@
             justify-content: center;
             align-items: center;
             width: 100%;
-            /* min-height for mobile to ensure visibility */
             min-height: 250px; 
         }
 
@@ -232,52 +230,64 @@
             border-radius: 50% 50% 0 0;
         }
 
-        /* --- RESPONSIVE MEDIA QUERIES --- */
+        /* --- RESPONSIVE MEDIA QUERIES (GRID LAYOUT) --- */
         @media screen and (max-width: 1024px) {
             body {
                 height: auto;
-                overflow-y: auto; /* Enable scrolling on mobile */
+                overflow-y: auto; /* Enable scrolling */
             }
 
             .main-container {
-                flex-direction: column; /* Stack elements vertically */
+                display: grid;
+                /* Layout: Dashboard on top, Sidebars side-by-side below */
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas: 
+                    "center center"
+                    "left right";
+                width: 100%;
+                height: auto;
             }
 
-            /* Reorder elements: Dashboard First (1), then Visualizers (2,3) */
             .center-content {
-                order: 1;
+                grid-area: center;
                 width: 100%;
-                padding: 20px 15px; /* Reduce padding slightly */
-                overflow: visible; /* Let content grow */
+                padding: 20px 10px;
+                order: 0;
             }
 
             .left-sidebar {
-                order: 2;
+                grid-area: left;
                 width: 100%;
-                border-right: none;
-                border-bottom: 1px solid #333;
                 height: auto;
+                border-right: 1px solid #333;
+                border-bottom: none;
+                padding: 10px;
             }
 
             .right-sidebar {
-                order: 3;
+                grid-area: right;
                 width: 100%;
-                border-left: none;
-                border-top: 1px solid #333;
                 height: auto;
-                padding-bottom: 50px; /* Extra padding at bottom */
+                border-left: none;
+                padding: 10px;
             }
 
-            h1 {
-                font-size: 2rem; /* Smaller Title */
-                margin-bottom: 30px;
-            }
-
+            /* Adjust text and widget sizes for small screens */
+            h1 { font-size: 1.8rem; margin-bottom: 20px; }
+            .left-sidebar h3, .right-sidebar h3 { font-size: 0.8rem; margin-bottom: 5px; }
+            
             #fan-widget-container {
-                height: 300px; /* Slightly shorter on mobile */
+                height: 180px; /* Smaller height for mobile row */
+            }
+
+            .bulb-wrapper {
+                min-height: 180px; /* Align with fan */
+            }
+
+            .bulb-container {
+                transform: scale(0.7); /* Scale bulb down to fit */
             }
         }
-
     </style>
 </head>
 <body>
@@ -574,7 +584,7 @@
             renderer.render(scene, camera);
         }
 
-        // Updated Resize Logic for Reliability
+        // Updated Resize Logic with Timer
         window.addEventListener('resize', () => {
             setTimeout(() => {
                 const newWidth = container.offsetWidth;
@@ -585,7 +595,7 @@
                     camera.updateProjectionMatrix();
                     renderer.setSize(newWidth, newHeight);
                 }
-            }, 100); // Slight delay to ensure CSS transition finishes
+            }, 100); 
         });
 
         animate();
